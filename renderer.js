@@ -185,77 +185,89 @@ function getModeClass(mode) {
 }
 
 // Process GPS data
+// Process GPS data
 function processGpsData(data) {
   try {
-    // Check for various GPS data formats that might come from the Jetson
-    // Handle both "GPS," and "@U@GPS," prefixes
-    if (data.includes('GPS,')) {
-      // Extract the part after GPS,
-      const gpsIndex = data.indexOf('GPS,');
-      const gpsData = data.substring(gpsIndex + 4); // Skip past 'GPS,'
-      const parts = gpsData.split(',');
+    // Look for "GPS" in the message regardless of prefix
+    if (data.includes('GPS')) {
+      // Looking at the raw message format: @U@GPS,37.425041,-122.104624,0.08,2
       
-      if (parts.length >= 4) {
-        this.gpsData.latitude = parseFloat(parts[0]);
-        this.gpsData.longitude = parseFloat(parts[1]);
-        this.gpsData.speed = parseFloat(parts[2]);
-        this.gpsData.fixQuality = parseInt(parts[3]);
-        this.gpsData.timestamp = Date.now();
+      // First, extract everything after "GPS,"
+      const gpsIndex = data.indexOf('GPS,');
+      if (gpsIndex !== -1) {
+        const gpsData_str = data.substring(gpsIndex + 4); // Skip past 'GPS,'
+        const parts = gpsData_str.split(',');
         
-        lastUpdateTime = Date.now();
-        updateGpsDisplay();
-        
-        addReceivedMessage(`GPS: LAT=${this.gpsData.latitude.toFixed(6)}, LON=${this.gpsData.longitude.toFixed(6)}, SPEED=${this.gpsData.speed.toFixed(2)}, FIX=${this.gpsData.fixQuality}`, 'gps');
-        return true;
+        // We expect: latitude, longitude, speed, fix quality
+        if (parts.length >= 4) {
+          gpsData.latitude = parseFloat(parts[0]);
+          gpsData.longitude = parseFloat(parts[1]);
+          gpsData.speed = parseFloat(parts[2]);
+          gpsData.fixQuality = parseInt(parts[3]);
+          gpsData.timestamp = Date.now();
+          
+          lastUpdateTime = Date.now();
+          updateGpsDisplay();
+          
+          addReceivedMessage(`GPS: LAT=${gpsData.latitude.toFixed(6)}, LON=${gpsData.longitude.toFixed(6)}, SPEED=${gpsData.speed.toFixed(2)}, FIX=${gpsData.fixQuality}`, 'gps');
+          return true;
+        }
       }
     }
+    
+    // No GPS data found
+    return false;
   } catch (error) {
     console.error('Error processing GPS data:', error);
+    return false;
   }
-  return false;
 }
 
 // Process boat status data
 function processStatusData(data) {
   try {
-    // Check for STATUS prefix in the data - could be in various formats
-    if (data.includes('STATUS:') || data.includes('STATUS,')) {
-      // Find where the status info starts and extract essential data
-      let statusParts = [];
+    // Check for STATUS in the data - handle the format showing in the logs
+    if (data.includes('STATUS:')) {
+      // Format appearing in logs: STATUS: MODE=unknown, EVENT=unknown, WIND=0.0°
+      // Extract values using regex
+      const modeMatch = /MODE=([^,]+)/.exec(data);
+      const eventMatch = /EVENT=([^,]+)/.exec(data);
+      const windMatch = /WIND=([^°\s]+)/.exec(data);
       
-      if (data.includes('STATUS:')) {
-        // Format: STATUS: MODE=value, EVENT=value, WIND=value
-        // Extract values using regex
-        const modeMatch = /MODE=([^,]+)/.exec(data);
-        const eventMatch = /EVENT=([^,]+)/.exec(data);
-        const windMatch = /WIND=([^°\s]+)/.exec(data);
-        
-        if (modeMatch) boatStatus.controlMode = modeMatch[1].trim().toLowerCase();
-        if (eventMatch) boatStatus.eventType = eventMatch[1].trim().toLowerCase();
-        if (windMatch) boatStatus.windDirection = parseFloat(windMatch[1]);
-      } else if (data.includes('STATUS,')) {
-        // Format: STATUS,mode,event,wind
-        const statusIndex = data.indexOf('STATUS,');
-        const statusData = data.substring(statusIndex + 7); // Skip past 'STATUS,'
-        statusParts = statusData.split(',');
-        
-        if (statusParts.length >= 3) {
-          boatStatus.controlMode = statusParts[0].trim().toLowerCase();
-          boatStatus.eventType = statusParts[1].trim().toLowerCase();
-          boatStatus.windDirection = parseFloat(statusParts[2]);
-        }
-      }
+      if (modeMatch) boatStatus.controlMode = modeMatch[1].trim().toLowerCase();
+      if (eventMatch) boatStatus.eventType = eventMatch[1].trim().toLowerCase();
+      if (windMatch) boatStatus.windDirection = parseFloat(windMatch[1]);
       
       lastUpdateTime = Date.now();
       updateBoatDisplay();
       
       addReceivedMessage(`STATUS: MODE=${boatStatus.controlMode}, EVENT=${boatStatus.eventType}, WIND=${boatStatus.windDirection.toFixed(1)}°`, 'status');
       return true;
+    } else if (data.includes('STATUS,')) {
+      // Format: STATUS,mode,event,wind
+      const statusIndex = data.indexOf('STATUS,');
+      const statusData = data.substring(statusIndex + 7); // Skip past 'STATUS,'
+      const statusParts = statusData.split(',');
+      
+      if (statusParts.length >= 3) {
+        boatStatus.controlMode = statusParts[0].trim().toLowerCase();
+        boatStatus.eventType = statusParts[1].trim().toLowerCase();
+        boatStatus.windDirection = parseFloat(statusParts[2]);
+        
+        lastUpdateTime = Date.now();
+        updateBoatDisplay();
+        
+        addReceivedMessage(`STATUS: MODE=${boatStatus.controlMode}, EVENT=${boatStatus.eventType}, WIND=${boatStatus.windDirection.toFixed(1)}°`, 'status');
+        return true;
+      }
     }
+    
+    // No status data found
+    return false;
   } catch (error) {
     console.error('Error processing status data:', error);
+    return false;
   }
-  return false;
 }
 
 // Process waypoint data
