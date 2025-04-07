@@ -1,0 +1,332 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background-color: #1e1e2e;
+  color: #e0e0e0;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+.container-fluid {
+  padding: 15px;
+}
+
+.card {
+  background-color: #2d2d3d;
+  border: 1px solid #3d3d4d;
+  margin-bottom: 15px;
+}
+
+.card-header {
+  padding: 10px 15px;
+  font-weight: bold;
+}
+
+.card-body {
+  padding: 10px;
+}
+
+/* Terminal window styles */
+.terminal-window {
+  background-color: #1a1a1a;
+  color: #f0f0f0;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: 0.9rem;
+  padding: 10px;
+  height: 200px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border-radius: 0 0 4px 4px;
+}
+
+/* Status panels */
+.status-panel {
+  background-color: #2d2d3d;
+  border: 1px solid #3d3d4d;
+  border-radius: 5px;
+  margin-bottom: 15px;
+}
+
+.status-panel-header {
+  padding: 10px 15px;
+  font-weight: bold;
+  border-bottom: 1px solid #3d3d4d;
+  border-radius: 5px 5px 0 0;
+}
+
+.status-panel-body {
+  padding: 15px;
+}
+
+/* Status item styles */
+.status-item {
+  margin-bottom: 12px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.status-label {
+  font-weight: bold;
+  color: #b0b0b0;
+}
+
+.status-value {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  text-align: right;
+}
+
+/* Terminal message colors */
+.message-received {
+  color: #88f7e2;
+}
+
+.message-timestamp {
+  color: #888;
+  margin-right: 5px;
+}
+
+.message-type-gps {
+  color: #7bf752;
+}
+
+.message-type-status {
+  color: #f7d952;
+}
+
+.message-type-waypoint {
+  color: #52a9f7;
+}
+
+.message-type-connection {
+  color: #f788ee;
+}
+
+.message-type-error {
+  color: #f75252;
+}
+
+.message-sent {
+  color: #52ccf7;
+}
+
+.message-ack {
+  color: #52f78c;
+}
+
+/* Connection indicator */
+.connection-indicator {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.connection-indicator.connected {
+  background-color: #28a745;
+  box-shadow: 0 0 10px rgba(40, 167, 69, 0.8);
+}
+
+.connection-indicator.disconnected {
+  background-color: #dc3545;
+}
+
+/* Fix quality colors */
+.fix-none {
+  color: #dc3545;
+}
+
+.fix-gps {
+  color: #ffc107;
+}
+
+.fix-dgps {
+  color: #17a2b8;
+}
+
+.fix-rtk {
+  color: #28a745;
+}
+
+/* Speed colors */
+.speed-stopped {
+  color: #dc3545;
+}
+
+.speed-slow {
+  color: #ffc107;
+}
+
+.speed-moving {
+  color: #28a745;
+}
+
+/* Age colors */
+.age-fresh {
+  color: #28a745;
+}
+
+.age-stale {
+  color: #ffc107;
+}
+
+.age-old {
+  color: #dc3545;
+}
+
+/* Mode colors */
+.mode-rc {
+  color: #28a745;
+}
+
+.mode-autonomous {
+  color: #ffc107;
+}
+
+.mode-unknown {
+  color: #6c757d;
+}
+
+/* Panel header colors */
+.received-header {
+  background-color: #3949ab;
+  color: white;
+}
+
+.sent-header {
+  background-color: #388e3c;
+  color: white;
+}
+
+.gps-header {
+  background-color: #0097a7;
+  color: white;
+}
+
+.boat-header {
+  background-color: #ffa000;
+  color: #333;
+}
+
+.commands-header {
+  background-color: #d32f2f;
+  color: white;
+}
+
+/* Button styles */
+.btn-primary {
+  background-color: #007bff;
+  border-color: #007bff;
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  border-color: #6c757d;
+}
+
+.btn-outline-primary {
+  color: #007bff;
+  border-color: #007bff;
+}
+
+.btn-outline-primary:hover {
+  background-color: #007bff;
+  color: white;
+}
+
+.btn-outline-success {
+  color: #28a745;
+  border-color: #28a745;
+}
+
+.btn-outline-success:hover {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-outline-warning {
+  color: #ffc107;
+  border-color: #ffc107;
+}
+
+.btn-outline-warning:hover {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.btn-outline-info {
+  color: #17a2b8;
+  border-color: #17a2b8;
+}
+
+.btn-outline-info:hover {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-outline-secondary {
+  color: #6c757d;
+  border-color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  border-color: #dc3545;
+  color: white;
+}
+
+/* Command input styles */
+.command-input-group {
+  margin-top: 15px;
+  display: flex;
+}
+
+.command-input {
+  flex-grow: 1;
+  background-color: #252530;
+  color: white;
+  border: 1px solid #444;
+  padding: 6px 12px;
+  border-radius: 4px 0 0 4px;
+}
+
+.command-input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.command-send {
+  border-radius: 0 4px 4px 0;
+}
+
+/* Modal styles */
+.modal-content {
+  background-color: #2d2d3d;
+  color: #e0e0e0;
+}
+
+.modal-header {
+  border-bottom: 1px solid #3d3d4d;
+}
+
+.modal-footer {
+  border-top: 1px solid #3d3d4d;
+}
+
+.form-control, .form-select {
+  background-color: #252530;
+  color: white;
+  border: 1px solid #444;
+}
+
+.form-control:focus, .form-select:focus {
+  background-color: #252530;
+  color: white;
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+}
