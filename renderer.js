@@ -295,6 +295,45 @@ function processWaypointData(data) {
   return false;
 }
 
+function processWindData(data) {
+  try {
+    // Check for WIND in the data
+    if (data.includes('WIND,')) {
+      const windIndex = data.indexOf('WIND,');
+      const windData = data.substring(windIndex + 5); // Skip past 'WIND,'
+      const windValue = parseFloat(windData);
+      
+      if (!isNaN(windValue)) {
+        boatStatus.windDirection = windValue;
+        updateBoatDisplay();
+        
+        addReceivedMessage(`WIND: ${windValue.toFixed(1)}°`, 'status');
+        return true;
+      }
+    }
+    
+    // No wind data found or failed to parse
+    return false;
+  } catch (error) {
+    console.error('Error processing wind data:', error);
+    return false;
+  }
+}
+
+// Then modify the serial-data event listener in renderer.js to include wind processing:
+
+// Received serial data
+ipcRenderer.on('serial-data', (event, data) => {
+  // First, display the raw data
+  addReceivedMessage(`Raw: ${data}`, 'default');
+  
+  // Try to parse as GPS, status, waypoint, or wind data
+  if (!processGpsData(data) && !processStatusData(data) && 
+      !processWaypointData(data) && !processWindData(data)) {
+    // Data already displayed as raw, no need to display again
+  }
+});
+
 // Update GPS display
 function updateGpsDisplay() {
   // Update fix quality
