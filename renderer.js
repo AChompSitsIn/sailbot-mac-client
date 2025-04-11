@@ -226,10 +226,34 @@ function processGpsData(data) {
 // Process boat status data
 function processStatusData(data) {
   try {
-    // Check for STATUS in the data - handle the format showing in the logs
-    if (data.includes('STATUS:')) {
-      // Format appearing in logs: STATUS: MODE=unknown, EVENT=unknown, WIND=0.0°
-      // Extract values using regex
+    // Check for STATUS in the data
+    if (data.includes('STATUS,')) {
+      // Format: STATUS,control_mode,event_type
+      const statusIndex = data.indexOf('STATUS,');
+      const statusData = data.substring(statusIndex + 7); // Skip past 'STATUS,'
+      const statusParts = statusData.split(',');
+      
+      if (statusParts.length >= 2) {
+        // Update the control mode
+        boatStatus.controlMode = statusParts[0].trim().toLowerCase();
+        
+        // Update the event type
+        boatStatus.eventType = statusParts[1].trim().toLowerCase();
+        
+        // Update wind direction if available (some STATUS messages might include it)
+        if (statusParts.length >= 3 && !isNaN(parseFloat(statusParts[2]))) {
+          boatStatus.windDirection = parseFloat(statusParts[2]);
+        }
+        
+        // Update the timestamp and refresh the display
+        lastUpdateTime = Date.now();
+        updateBoatDisplay();
+        
+        addReceivedMessage(`STATUS: MODE=${boatStatus.controlMode}, EVENT=${boatStatus.eventType}`, 'status');
+        return true;
+      }
+    } else if (data.includes('STATUS:')) {
+      // Support for alternative format: STATUS: MODE=value, EVENT=value, WIND=value
       const modeMatch = /MODE=([^,]+)/.exec(data);
       const eventMatch = /EVENT=([^,]+)/.exec(data);
       const windMatch = /WIND=([^°\s]+)/.exec(data);
@@ -241,25 +265,8 @@ function processStatusData(data) {
       lastUpdateTime = Date.now();
       updateBoatDisplay();
       
-      addReceivedMessage(`STATUS: MODE=${boatStatus.controlMode}, EVENT=${boatStatus.eventType}, WIND=${boatStatus.windDirection.toFixed(1)}°`, 'status');
+      addReceivedMessage(`STATUS: MODE=${boatStatus.controlMode}, EVENT=${boatStatus.eventType}`, 'status');
       return true;
-    } else if (data.includes('STATUS,')) {
-      // Format: STATUS,mode,event,wind
-      const statusIndex = data.indexOf('STATUS,');
-      const statusData = data.substring(statusIndex + 7); // Skip past 'STATUS,'
-      const statusParts = statusData.split(',');
-      
-      if (statusParts.length >= 3) {
-        boatStatus.controlMode = statusParts[0].trim().toLowerCase();
-        boatStatus.eventType = statusParts[1].trim().toLowerCase();
-        boatStatus.windDirection = parseFloat(statusParts[2]);
-        
-        lastUpdateTime = Date.now();
-        updateBoatDisplay();
-        
-        addReceivedMessage(`STATUS: MODE=${boatStatus.controlMode}, EVENT=${boatStatus.eventType}, WIND=${boatStatus.windDirection.toFixed(1)}°`, 'status');
-        return true;
-      }
     }
     
     // No status data found
