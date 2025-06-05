@@ -1,196 +1,380 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-<head>
-  <meta charset="UTF-8">
-  <title>Sailbot Remote Control</title>
-  <link rel="stylesheet" href="node_modules/bootstrap/dist/css/bootstrap.min.css">
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <div class="container-fluid">
-    <div class="row mb-3">
-      <div class="col-12">
-        <div class="d-flex justify-content-between align-items-center">
-          <h1>Sailbot Remote Control</h1>
-          <div class="d-flex align-items-center">
-            <div id="connection-indicator" class="connection-indicator disconnected me-2"></div>
-            <span id="connection-status">Disconnected</span>
-            <button id="connect-btn" class="btn btn-primary ms-3">Connect</button>
-            <button id="disconnect-btn" class="btn btn-secondary ms-2" disabled>Disconnect</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <head>
+        <meta charset="UTF-8" />
+        <title>Sailbot Remote Control</title>
+        <link
+            rel="stylesheet"
+            href="node_modules/bootstrap/dist/css/bootstrap.min.css"
+        />
+        <link rel="stylesheet" href="styles.css" />
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div
+                        class="d-flex justify-content-between align-items-center"
+                    >
+                        <h1>Sailbot Remote Control</h1>
+                        <div class="d-flex align-items-center">
+                            <div
+                                id="connection-indicator"
+                                class="connection-indicator disconnected me-2"
+                            ></div>
+                            <span id="connection-status">Disconnected</span>
+                            <button
+                                id="connect-btn"
+                                class="btn btn-primary ms-3"
+                            >
+                                Connect
+                            </button>
+                            <button
+                                id="disconnect-btn"
+                                class="btn btn-secondary ms-2"
+                                disabled
+                            >
+                                Disconnect
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-    <div class="row">
-      <!-- Left panel - Sent/Received Messages -->
-      <div class="col-md-8">
-        <div class="row">
-          <!-- Received Messages -->
-          <div class="col-md-12 mb-3">
-            <div class="card">
-              <div class="card-header received-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Received Messages</h5>
-                <button id="clear-received" class="btn btn-sm btn-light">Clear</button>
-              </div>
-              <div class="terminal-window" id="received-messages"></div>
-            </div>
-          </div>
+            <div class="row">
+                <!-- Left panel - Sent/Received Messages -->
+                <div class="col-md-8">
+                    <div class="row">
+                        <!-- Received Messages -->
+                        <div class="col-md-12 mb-3">
+                            <div class="card">
+                                <div
+                                    class="card-header received-header d-flex justify-content-between align-items-center"
+                                >
+                                    <h5 class="mb-0">Received Messages</h5>
+                                    <button
+                                        id="clear-received"
+                                        class="btn btn-sm btn-light"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                                <div
+                                    class="terminal-window"
+                                    id="received-messages"
+                                ></div>
+                            </div>
+                        </div>
 
-          <!-- Sent Messages -->
-          <div class="col-md-12 mb-3">
-            <div class="card">
-              <div class="card-header sent-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">Sent Commands</h5>
-                <button id="clear-sent" class="btn btn-sm btn-light">Clear</button>
-              </div>
-              <div class="terminal-window" id="sent-messages"></div>
-            </div>
-          </div>
-        </div>
-      </div>
+                        <!-- Sent Messages -->
+                        <div class="col-md-12 mb-3">
+                            <div class="card">
+                                <div
+                                    class="card-header sent-header d-flex justify-content-between align-items-center"
+                                >
+                                    <h5 class="mb-0">Sent Commands</h5>
+                                    <button
+                                        id="clear-sent"
+                                        class="btn btn-sm btn-light"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                                <div
+                                    class="terminal-window"
+                                    id="sent-messages"
+                                ></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-      <!-- Right panel - Status & Controls -->
-      <div class="col-md-4">
-        <!-- GPS Status -->
-        <div class="status-panel mb-3">
-          <div class="status-panel-header gps-header">
-            <h5 class="mb-0">GPS Status</h5>
-          </div>
-          <div class="status-panel-body">
-            <div class="status-item">
-              <span class="status-label">Fix Quality:</span>
-              <span id="gps-fix-quality" class="status-value fix-none">No Fix</span>
+                <!-- Right panel - Status & Controls -->
+                <div class="col-md-4">
+                    <!-- GPS Status -->
+                    <div class="status-panel mb-3">
+                        <div class="status-panel-header gps-header">
+                            <h5 class="mb-0">GPS Status</h5>
+                        </div>
+                        <div class="status-panel-body">
+                            <div class="status-item">
+                                <span class="status-label">Fix Quality:</span>
+                                <span
+                                    id="gps-fix-quality"
+                                    class="status-value fix-none"
+                                    >No Fix</span
+                                >
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Position:</span>
+                                <span id="gps-position" class="status-value"
+                                    >0.000000°, 0.000000°</span
+                                >
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Speed:</span>
+                                <span
+                                    id="gps-speed"
+                                    class="status-value speed-stopped"
+                                    >0.00 m/s (0.00 knots)</span
+                                >
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Data Age:</span>
+                                <span id="gps-age" class="status-value"
+                                    >N/A</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Boat Status -->
+                    <div class="status-panel mb-3">
+                        <div class="status-panel-header boat-header">
+                            <h5 class="mb-0">Boat Status</h5>
+                        </div>
+                        <div class="status-panel-body">
+                            <div class="status-item">
+                                <span class="status-label">Control Mode:</span>
+                                <span
+                                    id="boat-mode"
+                                    class="status-value mode-unknown"
+                                    >Unknown</span
+                                >
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Event Type:</span>
+                                <span id="boat-event" class="status-value"
+                                    >Unknown</span
+                                >
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label"
+                                    >Wind Direction:</span
+                                >
+                                <span id="boat-wind" class="status-value"
+                                    >0.0°</span
+                                >
+                            </div>
+                            <div class="status-item">
+                                <span class="status-label">Waypoints:</span>
+                                <span id="boat-waypoints" class="status-value"
+                                    >0/0 (Last: 0)</span
+                                >
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Command Buttons -->
+                    <div class="status-panel">
+                        <div class="status-panel-header commands-header">
+                            <h5 class="mb-0">Commands</h5>
+                        </div>
+                        <div class="status-panel-body">
+                            <div class="d-grid gap-2">
+                                <button
+                                    id="cmd-0"
+                                    class="btn btn-outline-primary"
+                                    data-code="0"
+                                >
+                                    RC Control
+                                </button>
+                                <button
+                                    id="cmd-1"
+                                    class="btn btn-outline-success"
+                                    data-code="1"
+                                >
+                                    Start Autonomous
+                                </button>
+                                <button
+                                    id="cmd-2"
+                                    class="btn btn-outline-warning"
+                                    data-code="2"
+                                >
+                                    RC Interrupt
+                                </button>
+                                <button
+                                    id="cmd-3"
+                                    class="btn btn-outline-info"
+                                    data-code="3"
+                                >
+                                    Resume Autonomous
+                                </button>
+                                <button
+                                    id="cmd-9"
+                                    class="btn btn-outline-secondary"
+                                    data-code="9"
+                                >
+                                    Request Status
+                                </button>
+                                <button
+                                    id="cmd-4"
+                                    class="btn btn-danger"
+                                    data-code="4"
+                                >
+                                    EMERGENCY STOP
+                                </button>
+                                <hr />
+                                <button
+                                    id="open-rc-control"
+                                    class="btn btn-primary"
+                                >
+                                    Open RC Control
+                                </button>
+                            </div>
+
+                            <!-- Custom Command Input -->
+                            <div class="command-input-group mt-3">
+                                <input
+                                    type="number"
+                                    id="custom-command"
+                                    class="command-input"
+                                    min="0"
+                                    max="255"
+                                    placeholder="Custom command (0-255)"
+                                />
+                                <button
+                                    id="send-custom-command"
+                                    class="btn btn-primary command-send"
+                                >
+                                    Send
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="status-item">
-              <span class="status-label">Position:</span>
-              <span id="gps-position" class="status-value">0.000000°, 0.000000°</span>
-            </div>
-            <div class="status-item">
-              <span class="status-label">Speed:</span>
-              <span id="gps-speed" class="status-value speed-stopped">0.00 m/s (0.00 knots)</span>
-            </div>
-            <div class="status-item">
-              <span class="status-label">Data Age:</span>
-              <span id="gps-age" class="status-value">N/A</span>
-            </div>
-          </div>
         </div>
 
-        <!-- Boat Status -->
-        <div class="status-panel mb-3">
-          <div class="status-panel-header boat-header">
-            <h5 class="mb-0">Boat Status</h5>
-          </div>
-          <div class="status-panel-body">
-            <div class="status-item">
-              <span class="status-label">Control Mode:</span>
-              <span id="boat-mode" class="status-value mode-unknown">Unknown</span>
+        <!-- Connection Modal -->
+        <div
+            class="modal fade"
+            id="port-modal"
+            tabindex="-1"
+            aria-hidden="true"
+        >
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Connect to Serial Port</h5>
+                        <button
+                            type="button"
+                            class="btn-close btn-close-white"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"
+                        ></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="port-form">
+                            <div class="mb-3">
+                                <label for="port-select" class="form-label"
+                                    >Select Serial Port</label
+                                >
+                                <select
+                                    id="port-select"
+                                    class="form-select"
+                                    required
+                                >
+                                    <option value="" disabled selected>
+                                        Select a port...
+                                    </option>
+                                </select>
+                                <button
+                                    type="button"
+                                    id="refresh-ports"
+                                    class="btn btn-sm btn-secondary mt-2"
+                                >
+                                    Refresh Ports
+                                </button>
+                            </div>
+                            <div class="mb-3">
+                                <label for="baud-rate" class="form-label"
+                                    >Baud Rate</label
+                                >
+                                <select
+                                    id="baud-rate"
+                                    class="form-select"
+                                    required
+                                >
+                                    <option value="9600">9600</option>
+                                    <option value="19200">19200</option>
+                                    <option value="38400">38400</option>
+                                    <option value="57600" selected>
+                                        57600
+                                    </option>
+                                    <option value="115200">115200</option>
+                                </select>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            id="connect-confirm"
+                            class="btn btn-primary"
+                        >
+                            Connect
+                        </button>
+                    </div>
+                </div>
             </div>
-            <div class="status-item">
-              <span class="status-label">Event Type:</span>
-              <span id="boat-event" class="status-value">Unknown</span>
-            </div>
-            <div class="status-item">
-              <span class="status-label">Wind Direction:</span>
-              <span id="boat-wind" class="status-value">0.0°</span>
-            </div>
-            <div class="status-item">
-              <span class="status-label">Waypoints:</span>
-              <span id="boat-waypoints" class="status-value">0/0 (Last: 0)</span>
-            </div>
-          </div>
         </div>
 
-        <!-- Command Buttons -->
-        <div class="status-panel">
-          <div class="status-panel-header commands-header">
-            <h5 class="mb-0">Commands</h5>
-          </div>
-          <div class="status-panel-body">
-            <div class="d-grid gap-2">
-              <button id="cmd-0" class="btn btn-outline-primary" data-code="0">RC Control</button>
-              <button id="cmd-1" class="btn btn-outline-success" data-code="1">Start Autonomous</button>
-              <button id="cmd-2" class="btn btn-outline-warning" data-code="2">RC Interrupt</button>
-              <button id="cmd-3" class="btn btn-outline-info" data-code="3">Resume Autonomous</button>
-              <button id="cmd-9" class="btn btn-outline-secondary" data-code="9">Request Status</button>
-              <button id="cmd-4" class="btn btn-danger" data-code="4">EMERGENCY STOP</button>
+        <!-- About Modal -->
+        <div
+            class="modal fade"
+            id="about-modal"
+            tabindex="-1"
+            aria-hidden="true"
+        >
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">About Sailbot Client</h5>
+                        <button
+                            type="button"
+                            class="btn-close btn-close-white"
+                            data-bs-dismiss="modal"
+                            aria-label="Close"
+                        ></button>
+                    </div>
+                    <div class="modal-body">
+                        <h4>Sailbot Remote Control Client</h4>
+                        <p>Version 1.0.0</p>
+                        <p>
+                            A desktop application for controlling and monitoring
+                            the Sailbot.
+                        </p>
+                        <p>
+                            <strong>Electron:</strong>
+                            <span id="electron-version"></span><br />
+                            <strong>Node.js:</strong>
+                            <span id="node-version"></span><br />
+                            <strong>Chrome:</strong>
+                            <span id="chrome-version"></span>
+                        </p>
+                    </div>
+                    <div class="modal-footer">
+                        <button
+                            type="button"
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
             </div>
-            
-            <!-- Custom Command Input -->
-            <div class="command-input-group mt-3">
-              <input type="number" id="custom-command" class="command-input" min="0" max="255" placeholder="Custom command (0-255)">
-              <button id="send-custom-command" class="btn btn-primary command-send">Send</button>
-            </div>
-          </div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <!-- Connection Modal -->
-  <div class="modal fade" id="port-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Connect to Serial Port</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <form id="port-form">
-            <div class="mb-3">
-              <label for="port-select" class="form-label">Select Serial Port</label>
-              <select id="port-select" class="form-select" required>
-                <option value="" disabled selected>Select a port...</option>
-              </select>
-              <button type="button" id="refresh-ports" class="btn btn-sm btn-secondary mt-2">Refresh Ports</button>
-            </div>
-            <div class="mb-3">
-              <label for="baud-rate" class="form-label">Baud Rate</label>
-              <select id="baud-rate" class="form-select" required>
-                <option value="9600">9600</option>
-                <option value="19200">19200</option>
-                <option value="38400">38400</option>
-                <option value="57600" selected>57600</option>
-                <option value="115200">115200</option>
-              </select>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="button" id="connect-confirm" class="btn btn-primary">Connect</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- About Modal -->
-  <div class="modal fade" id="about-modal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">About Sailbot Client</h5>
-          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-          <h4>Sailbot Remote Control Client</h4>
-          <p>Version 1.0.0</p>
-          <p>A desktop application for controlling and monitoring the Sailbot.</p>
-          <p>
-            <strong>Electron:</strong> <span id="electron-version"></span><br>
-            <strong>Node.js:</strong> <span id="node-version"></span><br>
-            <strong>Chrome:</strong> <span id="chrome-version"></span>
-          </p>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="renderer.js"></script>
-</body>
+        <script src="node_modules/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+        <script src="renderer.js"></script>
+    </body>
 </html>
