@@ -359,16 +359,23 @@ ipcMain.handle("send-rudder-command", async (_, rudderAngle) => {
       throw new Error("Not connected to serial port");
     }
 
-    // Convert angle to integer
-    const rudderValue = Math.round(rudderAngle);
+    // Convert angle (-20 to +20) to byte value (0-255)
+    // The Pi expects: rudder_angle = (data_byte * 90.0 / 255.0) - 45.0
+    // So we need: data_byte = (rudder_angle + 45.0) * 255.0 / 90.0
+    const rudderByte = Math.round((rudderAngle + 45.0) * 255.0 / 90.0);
+    
+    // Clamp to valid byte range
+    const clampedByte = Math.max(0, Math.min(255, rudderByte));
+    
+    // Debug logging
+    console.log(`Rudder angle: ${rudderAngle}° -> byte: ${clampedByte} (will be decoded as ${(clampedByte * 90.0 / 255.0) - 45.0}° on Pi)`);
 
-    // Create binary command for rudder
+    // Create binary command for rudder (4 bytes total)
     const rudderCommand = Buffer.from([
-      0xaa, // Marker
-      RC_RUDDER_CMD,
-      rudderValue & 0xff,
-      (rudderValue >> 8) & 0xff,
-      (RC_RUDDER_CMD ^ rudderValue) & 0xff, // Checksum
+      0xc0, // Header (matching Pi's expectation)
+      RC_RUDDER_CMD, // Command code (10)
+      clampedByte, // Single data byte
+      (RC_RUDDER_CMD ^ clampedByte) ^ 0xff, // Checksum
     ]);
 
     // Send command
@@ -400,16 +407,20 @@ ipcMain.handle("send-sail-command", async (_, sailAngle) => {
       throw new Error("Not connected to serial port");
     }
 
-    // Convert angle to integer
-    const sailValue = Math.round(sailAngle);
+    // Convert angle (0 to 88) to byte value (0-255)
+    // The Pi expects: sail_angle = data_byte * 90.0 / 255.0
+    // So we need: data_byte = sail_angle * 255.0 / 90.0
+    const sailByte = Math.round(sailAngle * 255.0 / 90.0);
+    
+    // Clamp to valid byte range
+    const clampedByte = Math.max(0, Math.min(255, sailByte));
 
-    // Create binary command for sail
+    // Create binary command for sail (4 bytes total)
     const sailCommand = Buffer.from([
-      0xaa, // Marker
-      RC_SAIL_CMD,
-      sailValue & 0xff,
-      (sailValue >> 8) & 0xff,
-      (RC_SAIL_CMD ^ sailValue) & 0xff, // Checksum
+      0xc0, // Header (matching Pi's expectation)
+      RC_SAIL_CMD, // Command code (11)
+      clampedByte, // Single data byte
+      (RC_SAIL_CMD ^ clampedByte) ^ 0xff, // Checksum
     ]);
 
     // Send command

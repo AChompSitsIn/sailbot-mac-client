@@ -75,7 +75,10 @@ function updateConnectionUI(connected) {
     connectionStatus.textContent = "Connected";
     connectBtn.disabled = true;
     disconnectBtn.disabled = false;
-    commandButtons.forEach((btn) => (btn.disabled = false));
+    commandButtons.forEach((btn) => {
+      btn.disabled = false;
+      console.log(`Enabled button: ${btn.id}`);
+    });
     sendCustomCommandBtn.disabled = false;
   } else {
     connectionIndicator.classList.remove("connected");
@@ -83,7 +86,10 @@ function updateConnectionUI(connected) {
     connectionStatus.textContent = "Disconnected";
     connectBtn.disabled = false;
     disconnectBtn.disabled = true;
-    commandButtons.forEach((btn) => (btn.disabled = true));
+    commandButtons.forEach((btn) => {
+      btn.disabled = true;
+      console.log(`Disabled button: ${btn.id}`);
+    });
     sendCustomCommandBtn.disabled = true;
   }
 }
@@ -211,7 +217,6 @@ function processGpsData(data) {
           gpsData.fixQuality = parseInt(parts[3]);
           gpsData.timestamp = Date.now();
 
-          lastUpdateTime = Date.now();
           updateGpsDisplay();
 
           addReceivedMessage(
@@ -253,8 +258,7 @@ function processStatusData(data) {
           boatStatus.windDirection = parseFloat(statusParts[2]);
         }
 
-        // Update the timestamp and refresh the display
-        lastUpdateTime = Date.now();
+        // Refresh the display
         updateBoatDisplay();
 
         addReceivedMessage(
@@ -273,7 +277,6 @@ function processStatusData(data) {
       if (eventMatch) boatStatus.eventType = eventMatch[1].trim().toLowerCase();
       if (windMatch) boatStatus.windDirection = parseFloat(windMatch[1]);
 
-      lastUpdateTime = Date.now();
       updateBoatDisplay();
 
       addReceivedMessage(
@@ -485,7 +488,9 @@ async function disconnectFromPort() {
 // Send command to the sailbot
 async function sendCommand(commandCode) {
   try {
-    await ipcRenderer.invoke("send-command", commandCode);
+    console.log(`Sending command: ${commandCode}`);
+    const result = await ipcRenderer.invoke("send-command", commandCode);
+    console.log(`Command send result: ${result}`);
     addSentMessage(
       `Sent command: ${commandCode} - ${getCommandName(commandCode)}`,
     );
@@ -515,10 +520,10 @@ function startPeriodicUpdates() {
     // Check connection health based on last update time
     const timeSinceUpdate = (Date.now() - lastUpdateTime) / 1000;
     if (
-      timeSinceUpdate > 10 &&
+      timeSinceUpdate > 30 &&
       connectionIndicator.classList.contains("connected")
     ) {
-      addReceivedMessage("Connection timed out (no data for 10s)", "error");
+      addReceivedMessage("Connection timed out (no data for 30s)", "error");
       updateConnectionUI(false);
     }
   }, 1000);
@@ -545,6 +550,7 @@ connectConfirmBtn.addEventListener("click", connectToPort);
 commandButtons.forEach((button) => {
   button.addEventListener("click", () => {
     const code = parseInt(button.dataset.code);
+    console.log(`Command button clicked: ${button.id}, code: ${code}`);
     sendCommand(code);
   });
 });
@@ -579,6 +585,15 @@ openRCControlBtn.addEventListener("click", () => {
 ipcRenderer.on("serial-data", (event, data) => {
   // First, display the raw data
   addReceivedMessage(`Raw: ${data}`, "default");
+  
+  // Update connection status - if we're receiving data, we're connected!
+  if (!connectionIndicator.classList.contains("connected")) {
+    console.log("Receiving data - updating connection status to connected");
+    updateConnectionUI(true);
+  }
+  
+  // Reset the last update time
+  lastUpdateTime = Date.now();
 
   // Try to parse as GPS, status, waypoint, or wind data
   if (
@@ -619,7 +634,12 @@ ipcRenderer.on("connection-established", () => {
 
 // Connection status update
 ipcRenderer.on("connection-status", (event, connected) => {
+  console.log(`Connection status update: ${connected}`);
   updateConnectionUI(connected);
+  addReceivedMessage(
+    connected ? "Serial port connected" : "Serial port disconnected",
+    connected ? "success" : "error",
+  );
 });
 
 // Serial error
@@ -642,13 +662,20 @@ ipcRenderer.on("show-about", () => {
 async function init() {
   // Check if already connected
   const isConnected = await ipcRenderer.invoke("check-connection");
+  console.log(`Initial connection state: ${isConnected}`);
   updateConnectionUI(isConnected);
 
   // Start periodic updates
   startPeriodicUpdates();
 
-  // Initially disable the custom command button until connected
-  sendCustomCommandBtn.disabled = true;
+  // Set initial button states based on connection
+  if (!isConnected) {
+    commandButtons.forEach((btn) => (btn.disabled = true));
+    sendCustomCommandBtn.disabled = true;
+  }
+  
+  // Debug: log how many command buttons were found
+  console.log(`Found ${commandButtons.length} command buttons`);
 }
 
 // Run initialization
