@@ -22,8 +22,8 @@ let sendInterval = null;
 let countdownInterval = null;
 
 // Control parameters
-const RUDDER_STEP = 2.0; // degrees per key press update
-const SAIL_STEP = 2.0; // degrees per key press update
+let RUDDER_STEP = 2.0; // degrees per key press update (can be changed by user)
+let SAIL_STEP = 2.0; // degrees per key press update (can be changed by user)
 const UPDATE_RATE = 50; // milliseconds between angle updates when key is held
 let SEND_INTERVAL = 2000; // milliseconds between sending commands (can be changed by user)
 
@@ -33,6 +33,10 @@ const RUDDER_MAX = 20; // degrees
 const SAIL_MIN = 0; // degrees
 const SAIL_MAX = 88; // degrees
 
+// Hotkey configuration
+let zeroRudderKey = 'z';
+let sendSailKey = 'p';
+
 // DOM elements
 const keyElements = {
   w: document.getElementById("key-w"),
@@ -40,6 +44,7 @@ const keyElements = {
   s: document.getElementById("key-s"),
   d: document.getElementById("key-d"),
   p: document.getElementById("key-p"),
+  z: document.getElementById("key-z"),
 };
 
 const rudderAngleDisplay = document.getElementById("rudder-angle");
@@ -55,6 +60,16 @@ const canvas = document.getElementById("boat-canvas");
 const ctx = canvas.getContext("2d");
 const windAngleDisplay = document.getElementById("wind-angle");
 const sendIntervalInput = document.getElementById("send-interval-input");
+
+// New control elements
+const rudderStepSlider = document.getElementById("rudder-step-slider");
+const rudderStepValue = document.getElementById("rudder-step-value");
+const sailStepSlider = document.getElementById("sail-step-slider");
+const sailStepValue = document.getElementById("sail-step-value");
+const zeroRudderBtn = document.getElementById("zero-rudder-btn");
+const zeroRudderKeyInput = document.getElementById("zero-rudder-key-input");
+const sendSailKeyInput = document.getElementById("send-sail-key-input");
+const zeroRudderHotkey = document.getElementById("zero-rudder-hotkey");
 
 // Update angle displays
 function updateAngleDisplays() {
@@ -104,41 +119,102 @@ function drawBoat() {
   ctx.lineTo(canvas.width, centerY);
   ctx.stroke();
   
-  // Draw wind direction arrow (coming FROM this angle)
-  // 0 degrees = wind from front of boat
-  // 90 degrees = wind from starboard (right)
-  // 180 degrees = wind from behind
-  // 270 degrees = wind from port (left)
+  // Draw compass directions for reference
+  ctx.font = "10px Arial";
+  ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("BOW", centerX, 30);
+  ctx.fillText("STERN", centerX, canvas.height - 30);
   ctx.save();
+  ctx.translate(30, centerY);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText("PORT", 0, 0);
+  ctx.restore();
+  ctx.save();
+  ctx.translate(canvas.width - 30, centerY);
+  ctx.rotate(Math.PI / 2);
+  ctx.fillText("STBD", 0, 0);
+  ctx.restore();
+  
+  // Draw relative wind indicator
+  // Wind angle is relative to boat: 0° = from bow, 90° = from starboard, 180° = from stern, 270° = from port
+  ctx.save();
+  
+  // Draw wind indicator circle
+  ctx.strokeStyle = "rgba(23, 162, 184, 0.3)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, 140, 0, Math.PI * 2);
+  ctx.stroke();
+  
+  // Calculate wind arrow position
+  // Since boat points up, we need to rotate the wind angle
+  // 0° wind (from bow) should point down, so we rotate by the wind angle
   ctx.translate(centerX, centerY);
   ctx.rotate((windDirection * Math.PI) / 180);
   
-  // Wind arrow pointing TO the boat (from outside)
+  // Draw wind arrow from outside pointing to boat center
   ctx.strokeStyle = "#17a2b8";
   ctx.fillStyle = "#17a2b8";
-  ctx.lineWidth = 3;
+  ctx.lineWidth = 4;
   
   // Arrow shaft
   ctx.beginPath();
-  ctx.moveTo(0, -150);
-  ctx.lineTo(0, -100);
+  ctx.moveTo(0, -140);
+  ctx.lineTo(0, -90);
   ctx.stroke();
   
-  // Arrow head pointing inward
+  // Arrow head pointing toward boat
   ctx.beginPath();
-  ctx.moveTo(0, -100);
-  ctx.lineTo(-10, -110);
-  ctx.lineTo(10, -110);
+  ctx.moveTo(0, -90);
+  ctx.lineTo(-12, -105);
+  ctx.lineTo(12, -105);
   ctx.closePath();
   ctx.fill();
   
-  // Wind label
-  ctx.font = "14px Arial";
+  // Draw wind strength indicator bars
+  ctx.strokeStyle = "#17a2b8";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(-8, -140);
+  ctx.lineTo(-8, -130);
+  ctx.moveTo(0, -140);
+  ctx.lineTo(0, -125);
+  ctx.moveTo(8, -140);
+  ctx.lineTo(8, -130);
+  ctx.stroke();
+  
+  ctx.restore();
+  
+  // Draw wind angle text
+  ctx.save();
+  ctx.font = "12px Arial";
   ctx.fillStyle = "#17a2b8";
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("WIND", 0, -170);
   
+  // Position text based on wind angle to avoid overlap with arrow
+  let textX = centerX;
+  let textY = centerY - 165;
+  
+  if (windDirection > 135 && windDirection < 225) {
+    // Wind from behind, put text at top
+    textY = centerY - 165;
+  } else if (windDirection > 315 || windDirection < 45) {
+    // Wind from front, put text at bottom
+    textY = centerY + 165;
+  } else if (windDirection >= 45 && windDirection <= 135) {
+    // Wind from starboard, put text on left
+    textX = centerX - 165;
+    textY = centerY;
+  } else {
+    // Wind from port, put text on right
+    textX = centerX + 165;
+    textY = centerY;
+  }
+  
+  ctx.fillText(`WIND ${windDirection.toFixed(0)}°`, textX, textY);
   ctx.restore();
   
   // Draw boat hull
@@ -309,6 +385,21 @@ async function sendSailCommand() {
   }
 }
 
+// Zero the rudder
+function zeroRudder() {
+  rudderAngle = 0;
+  rudderCommandQueued = true;
+  updateQueueStatus();
+  updateAngleDisplays();
+  
+  // Flash confirmation
+  const originalText = queueStatus.textContent;
+  queueStatus.textContent = "Rudder Zeroed!";
+  setTimeout(() => {
+    updateQueueStatus();
+  }, 500);
+}
+
 // Update countdown timer
 function updateCountdown() {
   const now = Date.now();
@@ -349,15 +440,34 @@ function stopSendInterval() {
 function handleKeyDown(event) {
   const key = event.key.toLowerCase();
 
+  // Check for customizable hotkeys first
+  if (key === zeroRudderKey) {
+    event.preventDefault();
+    // Flash the Z button
+    if (keyElements.z) {
+      keyElements.z.classList.add("active");
+      setTimeout(() => keyElements.z.classList.remove("active"), 100);
+    }
+    zeroRudder();
+    return;
+  }
+  
+  if (key === sendSailKey && sailCommandQueued) {
+    event.preventDefault();
+    // Flash the P button
+    if (keyElements.p) {
+      keyElements.p.classList.add("active");
+      setTimeout(() => keyElements.p.classList.remove("active"), 100);
+    }
+    sendSailCommand();
+    return;
+  }
+
+  // Handle regular control keys
   if (key in keysPressed && !keysPressed[key]) {
     keysPressed[key] = true;
     if (keyElements[key]) {
       keyElements[key].classList.add("active");
-    }
-    
-    // Send sail command when P is pressed
-    if (key === 'p' && sailCommandQueued) {
-      sendSailCommand();
     }
   }
 }
@@ -428,7 +538,10 @@ async function init() {
 
   // Prevent default behavior for control keys
   window.addEventListener("keydown", (e) => {
-    if (["w", "a", "s", "d", "p"].includes(e.key.toLowerCase())) {
+    const key = e.key.toLowerCase();
+    if (["w", "a", "s", "d"].includes(key) || 
+        key === zeroRudderKey || 
+        key === sendSailKey) {
       e.preventDefault();
     }
   });
@@ -469,6 +582,59 @@ async function init() {
       e.preventDefault();
       sendIntervalInput.blur();
     }
+  });
+  
+  // Set up rudder step slider
+  rudderStepSlider.addEventListener("input", (e) => {
+    RUDDER_STEP = parseFloat(e.target.value);
+    rudderStepValue.textContent = `${RUDDER_STEP.toFixed(1)}°`;
+  });
+  
+  // Set up sail step slider
+  sailStepSlider.addEventListener("input", (e) => {
+    SAIL_STEP = parseFloat(e.target.value);
+    sailStepValue.textContent = `${SAIL_STEP.toFixed(1)}°`;
+  });
+  
+  // Set up zero rudder button
+  zeroRudderBtn.addEventListener("click", zeroRudder);
+  
+  // Set up hotkey configuration
+  zeroRudderKeyInput.addEventListener("change", (e) => {
+    const newKey = e.target.value.toLowerCase();
+    if (newKey && newKey.length === 1) {
+      zeroRudderKey = newKey;
+      zeroRudderHotkey.textContent = `[${newKey.toUpperCase()}]`;
+      // Update the Z button if it exists
+      if (keyElements.z) {
+        keyElements.z.textContent = newKey.toUpperCase();
+      }
+    } else {
+      e.target.value = zeroRudderKey;
+    }
+  });
+  
+  sendSailKeyInput.addEventListener("change", (e) => {
+    const newKey = e.target.value.toLowerCase();
+    if (newKey && newKey.length === 1) {
+      sendSailKey = newKey;
+      // Update the P button if it exists
+      if (keyElements.p) {
+        keyElements.p.textContent = newKey.toUpperCase();
+      }
+    } else {
+      e.target.value = sendSailKey;
+    }
+  });
+  
+  // Prevent form submission on Enter key for hotkey inputs
+  [zeroRudderKeyInput, sendSailKeyInput].forEach(input => {
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        input.blur();
+      }
+    });
   });
 }
 
