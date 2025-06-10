@@ -459,7 +459,7 @@ async function connectToPort() {
     portModal.hide();
     updateConnectionUI(true);
     addReceivedMessage(
-      `Connected to ${selectedPort} at ${selectedBaud} baud`,
+      `Connected to WebSocket relay server`,
       "connection",
     );
 
@@ -478,7 +478,7 @@ async function disconnectFromPort() {
   try {
     const result = await ipcRenderer.invoke("disconnect-port");
     updateConnectionUI(false);
-    addReceivedMessage("Disconnected from serial port", "connection");
+    addReceivedMessage("Disconnected from relay server", "connection");
   } catch (error) {
     console.error("Error disconnecting:", error);
     addReceivedMessage(`Disconnect error: ${error}`, "error");
@@ -532,9 +532,20 @@ function startPeriodicUpdates() {
 // Event Listeners
 
 // Connection button
-connectBtn.addEventListener("click", () => {
-  refreshPorts();
-  portModal.show();
+connectBtn.addEventListener("click", async () => {
+  try {
+    addReceivedMessage("Connecting to relay server...", "connection");
+    const result = await ipcRenderer.invoke("connect-port", "", "");
+    updateConnectionUI(true);
+    addReceivedMessage("Connected to relay server", "connection");
+    
+    // Send initial status request after connection
+    setTimeout(() => {
+      sendCommand(9);
+    }, 1000);
+  } catch (error) {
+    addReceivedMessage(`Connection failed: ${error}`, "error");
+  }
 });
 
 // Disconnect button
@@ -637,14 +648,14 @@ ipcRenderer.on("connection-status", (event, connected) => {
   console.log(`Connection status update: ${connected}`);
   updateConnectionUI(connected);
   addReceivedMessage(
-    connected ? "Serial port connected" : "Serial port disconnected",
+    connected ? "Connected to relay server" : "Disconnected from relay server",
     connected ? "success" : "error",
   );
 });
 
-// Serial error
+// Connection error
 ipcRenderer.on("serial-error", (event, error) => {
-  addReceivedMessage(`Serial error: ${error}`, "error");
+  addReceivedMessage(`Connection error: ${error}`, "error");
 });
 
 // Show port dialog

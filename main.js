@@ -1,13 +1,11 @@
 const { app, BrowserWindow, ipcMain, Menu } = require("electron");
 const path = require("path");
-const { SerialPort } = require("serialport");
-const { ReadlineParser } = require("@serialport/parser-readline");
+const WebSocket = require("ws");
 
 // Keep a global reference of the window object to prevent it from being garbage collected
 let mainWindow;
 let rcWindow = null;
-let serialPort = null;
-let parser = null;
+let ws = null;
 
 // Track connection state
 let isConnected = false;
@@ -18,6 +16,10 @@ let currentWindDirection = 0.0;
 // RC Command codes
 const RC_RUDDER_CMD = 10; // 0x0A
 const RC_SAIL_CMD = 11; // 0x0B
+
+// WebSocket relay configuration
+const RELAY_URL = "wss://sailbot-relay.onrender.com";
+const AUTH_TOKEN = "antonius";
 
 // Create the main window
 function createWindow() {
@@ -49,13 +51,13 @@ function createWindow() {
         {
           label: "Connect",
           click: async () => {
-            mainWindow.webContents.send("show-port-dialog");
+            connectToRelay();
           },
         },
         {
           label: "Disconnect",
           click: async () => {
-            disconnectPort();
+            disconnectFromRelay();
           },
         },
         { type: "separator" },
@@ -162,54 +164,47 @@ app.on("window-all-closed", function () {
   if (process.platform !== "darwin") app.quit();
 });
 
-// List available serial ports
-ipcMain.handle("list-ports", async () => {
-  try {
-    const ports = await SerialPort.list();
-    return ports;
-  } catch (err) {
-    console.error("Error listing ports:", err);
-    return [];
-  }
-});
+// Connect to WebSocket relay
+async function connectToRelay() {
+  return new Promise((resolve, reject) => {
+    try {
+      // Disconnect if already connected
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        disconnectFromRelay();
+      }
 
-// Connect to serial port
-ipcMain.handle("connect-port", async (_, portPath, baudRate) => {
-  try {
-    // Disconnect if already connected
-    if (serialPort && serialPort.isOpen) {
-      await disconnectPort();
-    }
+      // Create WebSocket connection with type=control and auth token
+      const wsUrl = `${RELAY_URL}?type=control&auth=${AUTH_TOKEN}`;
+      ws = new WebSocket(wsUrl);
 
-    // Create new serial port
-    serialPort = new SerialPort({
-      path: portPath,
-      baudRate: parseInt(baudRate),
-      autoOpen: false,
-    });
-
-    return new Promise((resolve, reject) => {
-      serialPort.open((err) => {
-        if (err) {
-          console.error("Error opening port:", err);
-          reject(err.message);
-          return;
+      ws.on("open", () => {
+        console.log("Connected to relay server");
+        isConnected = true;
+        
+        if (mainWindow) {
+          mainWindow.webContents.send("connection-status", true);
+          mainWindow.webContents.send("connection-established");
         }
+        if (rcWindow) {
+          rcWindow.webContents.send("connection-status", true);
+        }
+        
+        resolve("Connected successfully");
+      });
 
-        // Set up readline parser for text-based messages
-        parser = serialPort.pipe(new ReadlineParser({ delimiter: "\n" }));
-
-        // Listen for data from the serial port
-        parser.on("data", (data) => {
+      ws.on("message", (data) => {
+        // Handle text messages (status updates)
+        if (typeof data === "string" || data instanceof String) {
           // Send received data to the renderer
           if (mainWindow) {
-            mainWindow.webContents.send("serial-data", data);
+            mainWindow.webContents.send("serial-data", data.toString());
           }
 
           // Check for wind data and forward to RC window
-          if (data.includes("WIND,")) {
-            const windIndex = data.indexOf("WIND,");
-            const windData = data.substring(windIndex + 5);
+          const dataStr = data.toString();
+          if (dataStr.includes("WIND,")) {
+            const windIndex = dataStr.indexOf("WIND,");
+            const windData = dataStr.substring(windIndex + 5);
             const windValue = parseFloat(windData);
 
             if (!isNaN(windValue)) {
@@ -219,88 +214,98 @@ ipcMain.handle("connect-port", async (_, portPath, baudRate) => {
               }
             }
           }
-        });
+        } 
+        // Handle binary messages (acknowledgments)
+        else if (data instanceof Buffer) {
+          // Check for acknowledgment header (0xA0)
+          if (data.length >= 3 && data[0] === 0xa0) {
+            const command = data[1];
+            const checksum = data[2];
 
-        // Listen for binary data (for command acknowledgments)
-        serialPort.on("data", (data) => {
-          // Check for binary protocol messages
-          if (data.length > 0) {
-            // Check for acknowledgment header (0xA0)
-            if (data[0] === 0xa0 && data.length >= 3) {
-              const command = data[1];
-              const checksum = data[2];
-
-              // Validate checksum (simple XOR)
-              if ((command ^ 0xff) === checksum) {
-                mainWindow.webContents.send("command-ack", command);
-              }
-            }
-
-            // Check for initial connection message (0xB0)
-            if (data[0] === 0xb0 && data.length >= 3) {
-              if (data[1] === 0x55 && data[2] === 0xaa) {
-                mainWindow.webContents.send("connection-established");
-              }
+            // Validate checksum (simple XOR)
+            if ((command ^ 0xff) === checksum) {
+              mainWindow.webContents.send("command-ack", command);
             }
           }
-        });
 
-        // Handle errors
-        serialPort.on("error", (err) => {
-          console.error("Serial port error:", err);
-          if (mainWindow) {
-            mainWindow.webContents.send("serial-error", err.message);
+          // Check for initial connection message (0xB0)
+          if (data.length >= 3 && data[0] === 0xb0) {
+            if (data[1] === 0x55 && data[2] === 0xaa) {
+              mainWindow.webContents.send("connection-established");
+            }
           }
-        });
-
-        isConnected = true;
-        if (mainWindow) {
-          mainWindow.webContents.send("connection-status", true);
         }
-        if (rcWindow) {
-          rcWindow.webContents.send("connection-status", true);
-        }
-        resolve("Connected successfully");
       });
-    });
-  } catch (err) {
-    console.error("Connection error:", err);
-    return Promise.reject(err.message);
-  }
-});
 
-// Disconnect from serial port
-async function disconnectPort() {
-  return new Promise((resolve) => {
-    if (serialPort && serialPort.isOpen) {
-      serialPort.close((err) => {
-        if (err) {
-          console.error("Error closing port:", err);
+      ws.on("error", (err) => {
+        console.error("WebSocket error:", err);
+        if (mainWindow) {
+          mainWindow.webContents.send("serial-error", err.message);
         }
-        serialPort = null;
-        parser = null;
+        reject(err.message);
+      });
+
+      ws.on("close", () => {
+        console.log("WebSocket connection closed");
         isConnected = false;
+        ws = null;
+        
         if (mainWindow) {
           mainWindow.webContents.send("connection-status", false);
         }
         if (rcWindow) {
           rcWindow.webContents.send("connection-status", false);
         }
-        resolve("Disconnected");
       });
+
+    } catch (err) {
+      console.error("Connection error:", err);
+      reject(err.message);
+    }
+  });
+}
+
+// Disconnect from WebSocket relay
+async function disconnectFromRelay() {
+  return new Promise((resolve) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.close();
+      ws = null;
+      isConnected = false;
+      
+      if (mainWindow) {
+        mainWindow.webContents.send("connection-status", false);
+      }
+      if (rcWindow) {
+        rcWindow.webContents.send("connection-status", false);
+      }
+      
+      resolve("Disconnected");
     } else {
       resolve("Not connected");
     }
   });
 }
 
-ipcMain.handle("disconnect-port", disconnectPort);
+// List available serial ports (not used anymore, but kept for compatibility)
+ipcMain.handle("list-ports", async () => {
+  return [];
+});
+
+// Connect to port (modified to connect to relay instead)
+ipcMain.handle("connect-port", async (_, portPath, baudRate) => {
+  // Ignore port path and baud rate, connect to relay instead
+  return connectToRelay();
+});
+
+// Disconnect from port
+ipcMain.handle("disconnect-port", disconnectFromRelay);
 
 // Send command to the sailbot
 ipcMain.handle("send-command", async (_, commandCode) => {
   try {
-    if (!serialPort || !serialPort.isOpen) {
-      return Promise.reject("Serial port not connected");
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return Promise.reject("WebSocket not connected");
     }
 
     // Validate command code is in valid range
@@ -314,17 +319,21 @@ ipcMain.handle("send-command", async (_, commandCode) => {
     const commandBytes = Buffer.from([0xc0, code, checksum]);
 
     return new Promise((resolve, reject) => {
-      serialPort.write(commandBytes, (err) => {
-        if (err) {
-          reject(err.message);
-        } else {
-          // Log to the sent messages window
-          if (mainWindow) {
-            mainWindow.webContents.send("command-sent", code);
+      try {
+        ws.send(commandBytes, { binary: true }, (err) => {
+          if (err) {
+            reject(err.message);
+          } else {
+            // Log to the sent messages window
+            if (mainWindow) {
+              mainWindow.webContents.send("command-sent", code);
+            }
+            resolve("Command sent");
           }
-          resolve("Command sent");
-        }
-      });
+        });
+      } catch (err) {
+        reject(err.message);
+      }
     });
   } catch (err) {
     console.error("Error sending command:", err);
@@ -355,8 +364,8 @@ ipcMain.handle("open-rc-window", () => {
 // Send rudder command only
 ipcMain.handle("send-rudder-command", async (_, rudderAngle) => {
   try {
-    if (!isConnected || !serialPort) {
-      throw new Error("Not connected to serial port");
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Not connected to relay server");
     }
 
     // Convert angle (-20 to +20) to byte value (0-255)
@@ -380,7 +389,7 @@ ipcMain.handle("send-rudder-command", async (_, rudderAngle) => {
 
     // Send command
     return new Promise((resolve, reject) => {
-      serialPort.write(rudderCommand, (err) => {
+      ws.send(rudderCommand, { binary: true }, (err) => {
         if (err) {
           reject(err.message);
         } else {
@@ -403,8 +412,8 @@ ipcMain.handle("send-rudder-command", async (_, rudderAngle) => {
 // Send sail command only
 ipcMain.handle("send-sail-command", async (_, sailAngle) => {
   try {
-    if (!isConnected || !serialPort) {
-      throw new Error("Not connected to serial port");
+    if (!isConnected || !ws || ws.readyState !== WebSocket.OPEN) {
+      throw new Error("Not connected to relay server");
     }
 
     // Convert angle (0 to 88) to byte value (0-255)
@@ -425,7 +434,7 @@ ipcMain.handle("send-sail-command", async (_, sailAngle) => {
 
     // Send command
     return new Promise((resolve, reject) => {
-      serialPort.write(sailCommand, (err) => {
+      ws.send(sailCommand, { binary: true }, (err) => {
         if (err) {
           reject(err.message);
         } else {
@@ -448,8 +457,8 @@ ipcMain.handle("send-sail-command", async (_, sailAngle) => {
 // Send RC command with rudder and sail angles (kept for compatibility)
 ipcMain.handle("send-rc-command", async (_, rudderAngle, sailAngle) => {
   try {
-    if (!serialPort || !serialPort.isOpen) {
-      return Promise.reject("Serial port not connected");
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      return Promise.reject("WebSocket not connected");
     }
 
     // Convert angles to byte values
@@ -479,7 +488,7 @@ ipcMain.handle("send-rc-command", async (_, rudderAngle, sailAngle) => {
 
     return new Promise((resolve, reject) => {
       // Send rudder command
-      serialPort.write(rudderCommand, (err) => {
+      ws.send(rudderCommand, { binary: true }, (err) => {
         if (err) {
           reject(err.message);
           return;
@@ -488,7 +497,7 @@ ipcMain.handle("send-rc-command", async (_, rudderAngle, sailAngle) => {
         // Small delay between commands
         setTimeout(() => {
           // Send sail command
-          serialPort.write(sailCommand, (err) => {
+          ws.send(sailCommand, { binary: true }, (err) => {
             if (err) {
               reject(err.message);
             } else {
